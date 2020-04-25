@@ -7,14 +7,23 @@ import base64
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from twilio.rest import Client
+from dotenv import load_dotenv, find_dotenv
+from pathlib import Path
+
+load_dotenv()
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
+TWILIO_SID = os.getenv("TWILIO_SID")
+TWILIO_AUTH = os.getenv("TWILIO_AUTH")
+TO_PHONE_NUMBER = os.getenv("TO_PHONE_NUMBER")
+FROM_PHONE_NUMBER = os.getenv("FROM_PHONE_NUMBER")
+client = Client(TWILIO_SID, TWILIO_AUTH)
+
+
 def main():
-    """Shows basic usage of the Gmail API.
-    Lists the user's Gmail labels.
-    """
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
@@ -37,16 +46,17 @@ def main():
     service = build('gmail', 'v1', credentials=creds)
 
     # Call the Gmail API
-    results = service.users().messages().list(userId='me', labelIds="IMPORTANT", q="application developer interview proceed -decline", maxResults=20).execute()
-
+    results = service.users().messages().list(userId='me', labelIds="IMPORTANT",
+                                              q="application developer interview proceed -decline", maxResults=20).execute()
     # print(results)
     if not results:
         print("No messages found")
     else:
         emails = []
         for email in results['messages']:
-            emails.append(service.users().messages().get(userId='me', id=email['id']).execute())
-        
+            emails.append(service.users().messages().get(
+                userId='me', id=email['id']).execute())
+
             if not emails:
                 print('No email found with id' + email['id'])
             else:
@@ -55,15 +65,16 @@ def main():
                 # create regex for finding offers or interviews
 
                 print(emails[0]['snippet'])
-                offers = re.findall(r'\b(\w*offer|invite|interview|congrat(s|ulations)|schedule|title|proceed\w*)\b', emails[0]['snippet'], re.MULTILINE)
+                offers = re.findall(
+                    r'\b(\w*offer|invite|interview|congrat(s|ulations)|schedule|title|proceed\w*)\b', emails[0]['snippet'], re.MULTILINE)
                 if offers:
-                   print(offers)
-                # for offer in emails[0]['snippet']:
-                #     z = re.findall(r'\b(\w*offer|invite|interview|congrat(s|ulations)|schedule|title\w*)\b', offer)
-                #     if z:
-                #         print(z)
-            
-                # print(json.dumps(offers, indent=4))
+                    print(offers)
+
+                    message = client.messages.create(body="You have " + str(
+                        len(offers)) + " offers in your email!", from_=FROM_PHONE_NUMBER, to=TO_PHONE_NUMBER)
+
+                    print(message.sid)
+
 
 
 if __name__ == '__main__':
