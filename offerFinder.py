@@ -3,6 +3,7 @@ import pickle
 import json
 import os.path
 import re
+import email
 import base64
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -44,37 +45,32 @@ def main():
             pickle.dump(creds, token)
 
     service = build('gmail', 'v1', credentials=creds)
-
     # Call the Gmail API
-    results = service.users().messages().list(userId='me', labelIds="IMPORTANT",
-                                              q="application developer interview proceed -decline", maxResults=20).execute()
-    # print(results)
-    if not results:
-        print("No messages found")
+    results = service.users().messages().list(userId='me', labelIds=['INBOX', 'IMPORTANT', 'SPAM'],
+                                              q="application developer interview proceed -decline is:unread", maxResults=20).execute()
+
+    if not results or results['resultSizeEstimate'] == 0:
+        print("No new offers found")
     else:
         emails = []
         for email in results['messages']:
             emails.append(service.users().messages().get(
-                userId='me', id=email['id']).execute())
+                userId='me', id=email['id'], format="raw").execute())
 
             if not emails:
                 print('No email found with id' + email['id'])
             else:
                 emails.sort(key=lambda email: email['internalDate'])
 
-                # create regex for finding offers or interviews
-
-                print(emails[0]['snippet'])
                 offers = re.findall(
                     r'\b(\w*offer|invite|interview|congrat(s|ulations)|schedule|title|proceed\w*)\b', emails[0]['snippet'], re.MULTILINE)
                 if offers:
                     print(offers)
 
                     message = client.messages.create(body="You have " + str(
-                        len(offers)) + " offers in your email!", from_=FROM_PHONE_NUMBER, to=TO_PHONE_NUMBER)
+                        len(offers)) + " new offers in your email!", from_=FROM_PHONE_NUMBER, to=TO_PHONE_NUMBER)
 
                     print(message.sid)
-
 
 
 if __name__ == '__main__':
